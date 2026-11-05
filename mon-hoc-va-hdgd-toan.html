@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <title>Môn học và HĐGD HĐTN Toán K3</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f0f2f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #1a73e8; margin-bottom: 20px; }
+        
+        .input-area { margin-bottom: 25px; text-align: center; }
+        textarea { width: 100%; max-width: 100%; height: 120px; border: 2px solid #cbd5e0; border-radius: 8px; font-size: 1rem; }
+        .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        
+        button { padding: 12px 25px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; color: white; transition: 0.3s; }
+        #btnAction { background: #1a73e8; }
+        #btnAction:hover { background: #1557b0; }
+        #btnCopy { background: #34a853; }
+        #btnCopy:hover { background: #2d8e47; }
+        button:disabled { background: #ccc !important; }
+
+        .status { padding: 10px; border-radius: 8px; margin-bottom: 20px; text-align: center; font-weight: bold; }
+
+        .table-wrapper { overflow-x: auto; } 
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+            table-layout: auto; 
+        }
+        th, td { 
+            border: 1px solid #e2e8f0; 
+            padding: 12px 15px; 
+            text-align: left;
+            white-space: normal;
+        }
+        th { background: #1a73e8; color: white; white-space: nowrap; } 
+        
+        .stt-col { width: 1%; white-space: nowrap; text-align: center; }
+        .muc-col { width: 1%; white-space: nowrap; text-align: center; font-weight: bold; }
+        .comment-col { width: auto; }
+
+        tr:nth-child(even) { background: #f8fafc; }
+        tr:hover { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tạo mẫu nhận xét Môn học và HĐGD Toán K3</h2>
+    <div id="status" class="status" style="background: #fff3cd; color: #856404;">Đang tải dữ liệu...</div>
+
+    <div class="main-layout">
+        <div style="flex: 1;">
+            <textarea id="inputMuc" placeholder="Dán cột T, H, C vào đây..."></textarea>
+            <div class="btn-group">
+                <button id="btnAction" onclick="generate()" disabled>✨ Tạo Nhận Xét</button>
+                <button id="btnCopy" onclick="copyResult()">📋 Copy Kết Quả</button>
+            </div>
+        </div>
+    </div>
+
+    <table id="resTable">
+        <thead>
+            <tr>
+                <th style="width: 50px;">STT</th>
+                <th style="width: 60px;">Mức</th>
+                <th>Lời Nhận Xét</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+    // Link CSV
+    const CSV_URL = `https://docs.google.com/spreadsheets/d/e/2PACX-1vQySDimcEBp3vKqfc2jhP4o744w8gGpG9mylii3y0BhhXs1WG6Sc_narJPqJfTTAONLG3LeHFudJDIb/pub?gid=965421222&single=true&output=csv`;
+
+    let bank = { T: [], H: [], C: [] };
+
+    // Hàm xử lý CSV
+    function parseCSVLine(line) {
+        const result = []; let cur = ''; let inQuote = false;
+        for (let char of line) {
+            if (char === '"') inQuote = !inQuote;
+            else if (char === ',' && !inQuote) { result.push(cur); cur = ''; }
+            else cur += char;
+        }
+        result.push(cur); return result;
+    }
+
+    async function loadData() {
+        const statusDiv = document.getElementById('status');
+        try {
+            const response = await fetch(CSV_URL);
+            const data = await response.text();
+            const lines = data.split(/\r?\n/);
+
+            lines.forEach(line => {
+                const cols = parseCSVLine(line);
+                for (let i = 0; i < cols.length - 1; i++) {
+                    let val = cols[i].trim().toUpperCase();
+                    let comment = cols[i+1].replace(/"/g, '').trim();
+                    
+                    if ((val === 'T' || val === 'H' || val === 'C') && comment.length > 5) {
+                        bank[val].push(comment);
+                    }
+                }
+            });
+
+            const total = bank.T.length + bank.H.length + bank.C.length;
+            if (total === 0) throw new Error("Không tìm thấy mẫu nhận xét nào!");
+
+            statusDiv.innerHTML = `✅ Đã tải ${total} câu mẫu (T:${bank.T.length}, H:${bank.H.length}, C:${bank.C.length})`;
+            statusDiv.style.background = "#d4edda"; statusDiv.style.color = "#155724";
+            document.getElementById('btnAction').disabled = false;
+        } catch (e) {
+            statusDiv.innerHTML = "❌ Lỗi: " + e.message;
+            statusDiv.style.background = "#f8d7da"; statusDiv.style.color = "#721c24";
+        }
+    }
+
+    function generate() {
+        const input = document.getElementById('inputMuc').value;
+        const rows = input.split('\n').map(r => r.trim().toUpperCase()).filter(r => r !== "");
+        const tbody = document.querySelector('#resTable tbody');
+        tbody.innerHTML = '';
+
+        rows.forEach((m, index) => {
+            const pool = bank[m];
+            let note = (pool && pool.length > 0) 
+                ? pool[Math.floor(Math.random() * pool.length)] 
+                : "⚠️ Không có mẫu cho mức " + m;
+
+            const tr = tbody.insertRow();
+            tr.innerHTML = `<td>${index+1}</td><td><b>${m}</b></td><td>${note}</td>`;
+        });
+    }
+
+    function copyResult() {
+        const txt = Array.from(document.querySelectorAll('#resTable tbody tr'))
+                         .map(r => r.cells[2].innerText).join('\n');
+        navigator.clipboard.writeText(txt).then(() => alert("Đã copy xong!"));
+    }
+
+    window.onload = loadData;
+</script>
+</body>
+</html>
